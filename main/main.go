@@ -24,7 +24,7 @@ func (f Foo) Sum(args Args, reply *int) error {
 	return nil
 }
 
-func startServer(addr chan string) {
+func startHTTPServer(addr chan string) {
 	// 注册函数
 	var foo Foo
 	if err := server.Register(&foo); err != nil {
@@ -39,7 +39,22 @@ func startServer(addr chan string) {
 	server.HandleHTTP()
 	addr <- l.Addr().String()
 	_ = http.Serve(l, nil)
-	//server.Accept(l)
+}
+
+func startTCPServer(addr chan string) {
+	// 注册函数
+	var foo Foo
+	if err := server.Register(&foo); err != nil {
+		log.Fatal("register err: ", err)
+	}
+	// 开启端口
+	l, err := net.Listen("tcp", ":9999")
+	if err != nil {
+		log.Fatal("network error:", err)
+	}
+	log.Println("start rpc server on", l.Addr())
+	addr <- l.Addr().String()
+	server.Accept(l)
 }
 
 func call(addr chan string) {
@@ -63,7 +78,7 @@ func call(addr chan string) {
 			if err := rpcClient.Call(context.Background(), "Foo.Sum", args, &reply); err != nil {
 				log.Fatal("call Foo.Sum error: ", err)
 			}
-			log.Printf("%d + %d =  %d", args.Num1, args.Num2, reply)
+			log.Printf("%d + %d = %d", args.Num1, args.Num2, reply)
 		}(i)
 	}
 	wg.Wait()
@@ -73,12 +88,12 @@ func main() {
 	log.SetFlags(0)
 	addr := make(chan string)
 	go call(addr)
-	startServer(addr)
+	startHTTPServer(addr) // 由于会阻塞进程，因此需要放在后面
 }
 
 func easyCall() {
 	addr := make(chan string)
-	go startServer(addr)
+	go startTCPServer(addr)
 
 	// in fact, following code is like a simple geerpc client
 	conn, _ := net.Dial("tcp", <-addr)

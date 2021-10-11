@@ -18,7 +18,7 @@ import (
 
 const (
 	Connected        = "200 Connected to GRPC_lee"
-	DefaultRPCPath   = "/_gprc_lee_"
+	DefaultRPCPath   = "/default_rpc"
 	DefaultDebugPath = "/debug/grpc_lee"
 	MagicNumber      = 0x3bef5c
 )
@@ -31,10 +31,10 @@ type request struct {
 }
 
 type Option struct {
-	MagicNumber   int           // 用于标记grpc-lee调用
-	CodecType     codec.Type    // 选择方式对数据进行编码
-	Conncttimeout time.Duration // 连接超时
-	HandleTimeout time.Duration // 处理超时
+	MagicNumber   int           `json:"magic_number"`   // 用于标记grpc-lee调用
+	CodecType     codec.Type    `json:"codec_type"`     // 选择方式对数据进行编码
+	Conncttimeout time.Duration `json:"conncttimeout"`  // 连接超时
+	HandleTimeout time.Duration `json:"handle_timeout"` // 处理超时
 }
 
 var DefaultOption = &Option{
@@ -230,7 +230,7 @@ func (s *Server) findService(serviceMethod string) (svc *service.Service, mtype 
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "CONNECT" {
+	if req.Method != "CONNECT" && req.Method != "POST" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = io.WriteString(w, "405 must CONNECT\n")
