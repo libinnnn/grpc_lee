@@ -56,7 +56,7 @@ func (x *XClient) call(rpcAddr string, ctx context.Context, serviceMethod string
 	return client.Call(ctx, serviceMethod, args, reply)
 }
 
-func (x *XClient) Call(rpcAddr string, ctx context.Context, serviceMethod string, args, reply interface{}) error {
+func (x *XClient) Call(ctx context.Context, serviceMethod string, args, reply interface{}) error {
 	rpcAddr, err := x.d.Get(x.mode)
 	if err != nil {
 		return err
