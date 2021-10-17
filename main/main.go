@@ -63,6 +63,18 @@ func startTCPServer(addr chan string) {
 	server.Accept(l)
 }
 
+func startServer(addrCh chan string) {
+	var foo Foo
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Fatal("network error:", err)
+	}
+	log.Println("start rpc server on", l.Addr())
+	_ = server.Register(&foo)
+	addrCh <- l.Addr().String()
+	server.Accept(l)
+}
+
 func call(addr chan string) {
 	rpcClient, err := client.DialHTTP("tcp", <-addr)
 	if err != nil {
@@ -107,11 +119,57 @@ func foo(xc *client.XClient, ctx context.Context, typ, serviceMethod string, arg
 	}
 }
 
+func balanceCall(addr1, addr2 string) {
+	d := client.NewMultiServerDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
+	xc := client.NewXClient(d, client.RandomSelect, nil)
+	defer func() { _ = xc.Close() }()
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			foo(xc, context.Background(), "call", "Foo.Sum", &Args{Num1: i, Num2: i * i})
+		}(i)
+	}
+	wg.Wait()
+}
+
+func broadcast(addr1, addr2 string) {
+	d := client.NewMultiServerDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
+	xc := client.NewXClient(d, client.RandomSelect, nil)
+	defer func() { _ = xc.Close() }()
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			foo(xc, context.Background(), "call", "Foo.Sum", &Args{Num1: i, Num2: i * i})
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+			foo(xc, ctx, "broadcast", "Foo.Sleep", &Args{Num1: i, Num2: i * i})
+		}(i)
+	}
+	wg.Wait()
+}
+
 func main() {
+	//// http server 调用
+	//log.SetFlags(0)
+	//addr := make(chan string)
+	//go call(addr)
+	//startHTTPServer(addr) // 由于会阻塞进程，因此需要放在后面
+
+	// load balance call
 	log.SetFlags(0)
-	addr := make(chan string)
-	go call(addr)
-	startHTTPServer(addr) // 由于会阻塞进程，因此需要放在后面
+	ch1 := make(chan string)
+	ch2 := make(chan string)
+	go startServer(ch1)
+	go startServer(ch2)
+	addr1 := <-ch1
+	addr2 := <-ch2
+
+	time.Sleep(time.Second)
+	balanceCall(addr1, addr2)
+	broadcast(addr1, addr2)
 }
 
 func easyCall() {

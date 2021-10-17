@@ -104,8 +104,9 @@ func (x *XClient) BroadCast(ctx context.Context, serviceMethod string, args, rep
 
 func NewXClient(d Discovery, mode SelectMode, opt *server.Option) *XClient {
 	return &XClient{
-		d:    d,
-		mode: mode,
-		opt:  opt,
+		d:       d,
+		mode:    mode,
+		opt:     opt,
+		clients: make(map[string]*Client),
 	}
 }
