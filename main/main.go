@@ -152,13 +152,13 @@ func broadcast(addr1, addr2 string) {
 }
 
 func main() {
-	//// http server 调用
+	//// part1 - http server 调用
 	//log.SetFlags(0)
 	//addr := make(chan string)
 	//go call(addr)
 	//startHTTPServer(addr) // 由于会阻塞进程，因此需要放在后面
 
-	// load balance call
+	// part2 - load balance call
 	log.SetFlags(0)
 	ch1 := make(chan string)
 	ch2 := make(chan string)
@@ -167,7 +167,7 @@ func main() {
 	addr1 := <-ch1
 	addr2 := <-ch2
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 3)
 	balanceCall(addr1, addr2)
 	broadcast(addr1, addr2)
 }

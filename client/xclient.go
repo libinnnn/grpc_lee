@@ -39,7 +39,7 @@ func (x *XClient) dail(rpcAddr string) (*Client, error) {
 	}
 	if client == nil { // 如果缓存中存在，则直接复用
 		var err error
-		client, err := Xdail(rpcAddr, x.opt)
+		client, err = Xdail(rpcAddr, x.opt)
 		if err != nil {
 			return nil, err
 		}
