@@ -24,8 +24,8 @@ type Discovery interface {
 
 type MultiServersDiscovery struct {
 	r       *rand.Rand
-	mu      sync.RWMutex
-	servers []string
+	Mu      sync.RWMutex
+	Servers []string
 	index   int
 }
 
@@ -34,24 +34,24 @@ func (m MultiServersDiscovery) Refresh() error {
 }
 
 func (m MultiServersDiscovery) Update(servers []string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.servers = servers
+	m.Mu.Lock()
+	defer m.Mu.Unlock()
+	m.Servers = servers
 	return nil
 }
 
 func (m MultiServersDiscovery) Get(mode SelectMode) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	n := len(m.servers)
+	m.Mu.Lock()
+	defer m.Mu.Unlock()
+	n := len(m.Servers)
 	if n == 0 {
 		return "", errors.New("rpc discovery: no available servers")
 	}
 	switch mode {
 	case RandomSelect:
-		return m.servers[m.r.Intn(n)], nil
+		return m.Servers[m.r.Intn(n)], nil
 	case RoundRobinSelect:
-		s := m.servers[m.index%n] // 下标会被更新，因此通过取模的方式能保证访问安全
+		s := m.Servers[m.index%n] // 下标会被更新，因此通过取模的方式能保证访问安全
 		m.index = (m.index + 1) % n
 		return s, nil
 	default:
@@ -60,17 +60,17 @@ func (m MultiServersDiscovery) Get(mode SelectMode) (string, error) {
 }
 
 func (m MultiServersDiscovery) GetAll() ([]string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	servers := make([]string, len(m.servers), len(m.servers))
-	copy(servers, m.servers)
+	m.Mu.Lock()
+	defer m.Mu.Unlock()
+	servers := make([]string, len(m.Servers), len(m.Servers))
+	copy(servers, m.Servers)
 	return servers, nil
 }
 
 func NewMultiServerDiscovery(servers []string) *MultiServersDiscovery {
 	d := &MultiServersDiscovery{
 		r:       rand.New(rand.NewSource(time.Now().UnixNano())),
-		servers: servers,
+		Servers: servers,
 	}
 	d.index = d.r.Intn(math.MaxInt32 - 1)
 	return d

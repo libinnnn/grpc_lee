@@ -1,4 +1,4 @@
-package grpc_lee
+package registry
 
 import (
 	"log"

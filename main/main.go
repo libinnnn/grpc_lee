@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"grpc_lee/client"
 	"grpc_lee/codec"
+	"grpc_lee/registry"
 	"grpc_lee/server"
 	"log"
 	"net"
@@ -134,6 +135,21 @@ func balanceCall(addr1, addr2 string) {
 	wg.Wait()
 }
 
+func beatBalanceCall(registrys string) {
+	d := registry.NewRegistryDiscovery(registrys, 0)
+	xc := client.NewXClient(d, client.RandomSelect, nil)
+	defer func() { _ = xc.Close() }()
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			foo(xc, context.Background(), "call", "Foo.Sum", &Args{Num1: i, Num2: i * i})
+		}(i)
+	}
+	wg.Wait()
+}
+
 func broadcast(addr1, addr2 string) {
 	d := client.NewMultiServerDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
 	xc := client.NewXClient(d, client.RandomSelect, nil)
@@ -151,6 +167,40 @@ func broadcast(addr1, addr2 string) {
 	wg.Wait()
 }
 
+func beatBroadcast(registrys string) {
+	d := registry.NewRegistryDiscovery(registrys, 0)
+	xc := client.NewXClient(d, client.RandomSelect, nil)
+	defer func() { _ = xc.Close() }()
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			foo(xc, context.Background(), "call", "Foo.Sum", &Args{Num1: i, Num2: i * i})
+			ctx, _ := context.WithTimeout(context.Background(), time.Second*2)
+			foo(xc, ctx, "broadcast", "Foo.Sleep", &Args{Num1: i, Num2: i * i})
+		}(i)
+	}
+	wg.Wait()
+}
+
+func startRegistry(wg *sync.WaitGroup) {
+	l, _ := net.Listen("tcp", ":9999")
+	registry.HandleHTTP()
+	wg.Done()
+	_ = http.Serve(l, nil)
+}
+
+func startHeartbeatServer(registryAddr string, wg *sync.WaitGroup) {
+	var foo Foo
+	l, _ := net.Listen("tcp", ":0")
+	server := server.NewServer()
+	_ = server.Register(&foo)
+	registry.Heartbeat(registryAddr, "tcp@"+l.Addr().String(), 0)
+	wg.Done()
+	server.Accept(l)
+}
+
 func main() {
 	//// part1 - http server 调用
 	//log.SetFlags(0)
@@ -158,18 +208,37 @@ func main() {
 	//go call(addr)
 	//startHTTPServer(addr) // 由于会阻塞进程，因此需要放在后面
 
-	// part2 - load balance call
-	log.SetFlags(0)
-	ch1 := make(chan string)
-	ch2 := make(chan string)
-	go startServer(ch1)
-	go startServer(ch2)
-	addr1 := <-ch1
-	addr2 := <-ch2
+	//// part2 - load balance call
+	//log.SetFlags(0)
+	//ch1 := make(chan string)
+	//ch2 := make(chan string)
+	//go startServer(ch1)
+	//go startServer(ch2)
+	//addr1 := <-ch1
+	//addr2 := <-ch2
+	//
+	//time.Sleep(time.Second * 3)
+	//balanceCall(addr1, addr2)
+	//broadcast(addr1, addr2)
 
-	time.Sleep(time.Second * 3)
-	balanceCall(addr1, addr2)
-	broadcast(addr1, addr2)
+	// part3 - heartbeat
+	log.SetFlags(0)
+	registryAddr := "http://localhost:9999/_grpc_lee_/registry"
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go startRegistry(&wg)
+	wg.Wait()
+
+	time.Sleep(time.Second)
+	wg.Add(2)
+	go startHeartbeatServer(registryAddr, &wg)
+	go startHeartbeatServer(registryAddr, &wg)
+	wg.Wait()
+
+	time.Sleep(time.Second)
+	beatBalanceCall(registryAddr)
+	beatBroadcast(registryAddr)
+
 }
 
 func easyCall() {
