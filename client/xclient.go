@@ -8,11 +8,12 @@ import (
 	"sync"
 )
 
+// 支持负载均衡的客户端
 type XClient struct {
-	d       Discovery
-	mode    SelectMode
+	d       Discovery  // 服务发现获取当前可以的client
+	mode    SelectMode // 负载均衡策略
 	opt     *server.Option
-	mu      sync.Mutex
+	mu      sync.Mutex // 存在客户端并发，因此对于更新操作需要加锁
 	clients map[string]*Client
 }
 
@@ -37,7 +38,7 @@ func (x *XClient) dail(rpcAddr string) (*Client, error) {
 		delete(x.clients, rpcAddr)
 		client = nil
 	}
-	if client == nil { // 如果缓存中存在，则直接复用
+	if client == nil { // 如果缓存中不存在，则重新创建并且加入缓存中
 		var err error
 		client, err = Xdail(rpcAddr, x.opt)
 		if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// 用于客户端向注册中心进行服务的发现
 type RegistryDiscovery struct {
 	*client.MultiServersDiscovery
 	registry   string

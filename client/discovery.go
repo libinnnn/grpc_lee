@@ -40,6 +40,7 @@ func (m MultiServersDiscovery) Update(servers []string) error {
 	return nil
 }
 
+// 根据mode负载均衡策略决定返回对应的client
 func (m MultiServersDiscovery) Get(mode SelectMode) (string, error) {
 	m.Mu.Lock()
 	defer m.Mu.Unlock()

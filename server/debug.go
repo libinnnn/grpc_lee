@@ -38,6 +38,7 @@ type debugService struct {
 	Method map[string]*service.MethodType
 }
 
+// 用于外部查看服务调用情况
 func (d debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var services []debugService
 	d.serviceMap.Range(func(namei, svici interface{}) bool {
